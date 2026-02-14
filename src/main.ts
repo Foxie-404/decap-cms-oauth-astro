@@ -1,102 +1,194 @@
 import type { AstroConfig, AstroIntegration } from "astro";
 import { envField } from "astro/config";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import yaml from "js-yaml";
+
 
 export interface DecapCMSOptions {
-  decapCMSSrcUrl?: string;
-  decapCMSVersion?: string;
-  adminDisabled?: boolean;
-  adminRoute?: string;
-  oauthDisabled?: boolean;
-  oauthLoginRoute?: string;
-  oauthCallbackRoute?: string;
+    configPath?: string;
+    decapCMSSrcUrl?: string;
+    decapCMSVersion?: string;
+    adminDisabled?: boolean;
+    adminRoute?: string;
+    oauthDisabled?: boolean;
+    oauthLoginRoute?: string;
+    oauthCallbackRoute?: string;
 }
 const defaultOptions: DecapCMSOptions = {
-  decapCMSSrcUrl: "",
-  decapCMSVersion: "3.3.3",
-  adminDisabled: false,
-  adminRoute: "/admin",
-  oauthDisabled: false,
-  oauthLoginRoute: "/oauth",
-  oauthCallbackRoute: "/oauth/callback",
+    configPath: "public/admin/config.yml",
+    decapCMSSrcUrl: "",
+    decapCMSVersion: "3.3.3",
+    adminDisabled: false,
+    adminRoute: "/admin",
+    oauthDisabled: false,
+    oauthLoginRoute: "/oauth",
+    oauthCallbackRoute: "/oauth/callback",
 };
 
+const WHITELIST = [
+    "backend",
+    "site_url",
+    "display_url",
+    "logo",
+    "logo_url",
+    "media_folder",
+    "public_folder",
+    "collections",
+    "publish_mode",
+    "show_preview_links",
+    "slug",
+    "local_backend",
+    "i18n",
+    "media_library",
+    "editor",
+    "search",
+    "locale",
+];
+
 export default function decapCMS(options: DecapCMSOptions = {}): AstroIntegration {
-  const {
-    decapCMSSrcUrl,
-    decapCMSVersion,
-    adminDisabled,
-    adminRoute,
-    oauthDisabled,
-    oauthLoginRoute,
-    oauthCallbackRoute,
-  } = {
-    ...defaultOptions,
-    ...options,
-  };
+    const {
+        configPath,
+        decapCMSSrcUrl,
+        decapCMSVersion,
+        adminDisabled,
+        adminRoute,
+        oauthDisabled,
+        oauthLoginRoute,
+        oauthCallbackRoute,
+    } = {
+        ...defaultOptions,
+        ...options,
+    };
 
-  if (!adminRoute?.startsWith("/") || !oauthLoginRoute?.startsWith("/") || !oauthCallbackRoute?.startsWith("/")) {
-    throw new Error('`adminRoute`, `oauthLoginRoute` and `oauthCallbackRoute` options must start with "/"');
-  }
+    if (!adminRoute?.startsWith("/") || !oauthLoginRoute?.startsWith("/") || !oauthCallbackRoute?.startsWith("/")) {
+        throw new Error('`adminRoute`, `oauthLoginRoute` and `oauthCallbackRoute` options must start with "/"');
+    }
 
-  return {
-    name: "astro-decap-cms-oauth",
-    hooks: {
-      "astro:config:setup": async ({ injectRoute, updateConfig }) => {
-        const env: AstroConfig["env"] = { validateSecrets: true, schema: {} };
+    return {
+        name: "astro-decap-cms-oauth",
+        hooks: {
+            "astro:config:setup": async ({ injectRoute, updateConfig, config }) => {
+                const env: AstroConfig["env"] = { validateSecrets: true, schema: {} };
 
-        if (!adminDisabled) {
-          env.schema!.PUBLIC_DECAP_CMS_SRC_URL = envField.string({
-            context: "client",
-            access: "public",
-            optional: true,
-            default: decapCMSSrcUrl,
-          });
-          env.schema!.PUBLIC_DECAP_CMS_VERSION = envField.string({
-            context: "client",
-            access: "public",
-            optional: true,
-            default: decapCMSVersion,
-          });
+                let validatedConfigYaml = "";
 
-          // mount DecapCMS admin route
-          injectRoute({
-            pattern: adminRoute,
-            entrypoint: "astro-decap-cms-oauth/src/admin.astro",
-          });
-        }
+                if (!adminDisabled) {
+                    // Resolve config path
+                    const rootDir = fileURLToPath(config.root);
+                    let absoluteConfigPath = path.resolve(rootDir, configPath!);
 
-        if (!oauthDisabled) {
-          env.schema!.OAUTH_GITHUB_CLIENT_ID = envField.string({
-            context: "server",
-            access: "secret",
-          });
-          env.schema!.OAUTH_GITHUB_CLIENT_SECRET = envField.string({
-            context: "server",
-            access: "secret",
-          });
-          env.schema!.OAUTH_GITHUB_REPO_ID = envField.string({
-            context: "server",
-            access: "secret",
-            optional: true,
-            default: "",
-          });
+                    if (!fs.existsSync(absoluteConfigPath)) {
+                        const fallbackPath = path.resolve(rootDir, "public/admin/config.yml");
+                        if (fs.existsSync(fallbackPath)) {
+                            absoluteConfigPath = fallbackPath;
+                        } else {
+                            throw new Error(`Decap CMS config file not found at ${configPath} or ${fallbackPath}`);
+                        }
+                    }
 
-          // mount OAuth backend - sign in route
-          injectRoute({
-            pattern: oauthLoginRoute,
-            entrypoint: "astro-decap-cms-oauth/src/oauth/index.ts",
-          });
+                    // Read and validate config
+                    try {
+                        const fileContent = fs.readFileSync(absoluteConfigPath, "utf8");
+                        const parsedConfig = yaml.load(fileContent) as Record<string, any>;
 
-          // mount OAuth backend - callback route
-          injectRoute({
-            pattern: oauthCallbackRoute,
-            entrypoint: "astro-decap-cms-oauth/src/oauth/callback.ts",
-          });
-        }
+                        if (!parsedConfig.backend || !parsedConfig.collections) {
+                            console.error("Decap CMS configuration is missing required fields: 'backend' or 'collections'. Admin dashboard will be disabled.");
+                            return;
+                        }
 
-        // apply env schema & defaults
-        updateConfig({ env });
-      },
-    },
-  };
+                        // Whitelist filtering
+                        const filteredConfig: Record<string, any> = {};
+                        for (const key of WHITELIST) {
+                            if (key in parsedConfig) {
+                                filteredConfig[key] = parsedConfig[key];
+                            }
+                        }
+
+                        validatedConfigYaml = yaml.dump(filteredConfig);
+                    } catch (e) {
+                        console.error(`Failed to parse Decap CMS config: ${e}`);
+                        return;
+                    }
+
+                    env.schema!.PUBLIC_DECAP_CMS_SRC_URL = envField.string({
+                        context: "client",
+                        access: "public",
+                        optional: true,
+                        default: decapCMSSrcUrl,
+                    });
+                    env.schema!.PUBLIC_DECAP_CMS_VERSION = envField.string({
+                        context: "client",
+                        access: "public",
+                        optional: true,
+                        default: decapCMSVersion,
+                    });
+
+                    // mount DecapCMS admin route
+                    injectRoute({
+                        pattern: adminRoute,
+                        entrypoint: "astro-decap-cms-oauth/src/admin.astro",
+                    });
+
+                    // mount DecapCMS config route
+                    injectRoute({
+                        pattern: `${adminRoute}/config.yml`,
+                        entrypoint: "astro-decap-cms-oauth/src/config.ts",
+                    });
+                }
+
+                if (!oauthDisabled) {
+                    env.schema!.OAUTH_GITHUB_CLIENT_ID = envField.string({
+                        context: "server",
+                        access: "secret",
+                    });
+                    env.schema!.OAUTH_GITHUB_CLIENT_SECRET = envField.string({
+                        context: "server",
+                        access: "secret",
+                    });
+                    env.schema!.OAUTH_GITHUB_REPO_ID = envField.string({
+                        context: "server",
+                        access: "secret",
+                        optional: true,
+                        default: "",
+                    });
+
+                    // mount OAuth backend - sign in route
+                    injectRoute({
+                        pattern: oauthLoginRoute,
+                        entrypoint: "astro-decap-cms-oauth/src/oauth/index.ts",
+                    });
+
+                    // mount OAuth backend - callback route
+                    injectRoute({
+                        pattern: oauthCallbackRoute,
+                        entrypoint: "astro-decap-cms-oauth/src/oauth/callback.ts",
+                    });
+                }
+
+                // apply env schema & defaults
+                updateConfig({
+                    env,
+                    vite: {
+                        plugins: [
+                            {
+                                name: "decap-cms-config",
+                                resolveId(id) {
+                                    if (id === "virtual:decap-cms-config") {
+                                        return "\0virtual:decap-cms-config";
+                                    }
+                                },
+                                load(id) {
+                                    if (id === "\0virtual:decap-cms-config") {
+                                        return `export const configYaml = ${JSON.stringify(validatedConfigYaml)};`;
+                                    }
+                                },
+                            },
+                        ],
+                    },
+                });
+            },
+        },
+    };
 }

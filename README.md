@@ -4,24 +4,17 @@
   <br/>
 </div>
 
-<p align="center">
-  <a href="https://npmjs.com/package/astro-decap-cms-oauth">
-    <img src="https://img.shields.io/npm/v/astro-decap-cms-oauth" alt="astro-decap-cms-oauth" />
-  </a>
-  <a href="https://npmjs.com/package/astro-decap-cms-oauth">
-    <img src="https://img.shields.io/npm/dt/astro-decap-cms-oauth" alt="npm download count">
-  </a>
-</p>
-
 This integration automatically mounts the Decap CMS (or any compatible CMS like Sveltia) admin dashboard to `/admin` and custom OAuth authentication backend routes to `/oauth`, `/oauth/callback` using GitHub as the provider.
 
 _This way, you aren't vendor-locked to `Netlify` and your app can be deployed anywhere that supports SSR._
+
 
 ## Installation
 
 ```bash
 npx astro add astro-decap-cms-oauth
 ```
+
 
 ## Manual Installation
 
@@ -38,6 +31,7 @@ export default defineConfig({
     integrations: [decapCmsOauth()],
 });
 ```
+
 
 ## Usage
 
@@ -96,10 +90,12 @@ PUBLIC_DECAP_CMS_SRC_URL=https://unpkg.com/decap-cms@^3.3.3/dist/decap-cms.js
 PUBLIC_DECAP_CMS_VERSION=3.3.3
 ```
 
+
 ## Configuration Options
 
 ```js
 export interface DecapCMSOptions {
+  configPath?: string;
   decapCMSSrcUrl?: string;
   decapCMSVersion?: string;
   adminDisabled?: boolean;
@@ -110,6 +106,7 @@ export interface DecapCMSOptions {
 }
 
 const defaultOptions: DecapCMSOptions = {
+  configPath: "public/admin/config.yml",
   decapCMSSrcUrl: "",
   decapCMSVersion: "3.3.3",
   adminDisabled: false,
@@ -119,6 +116,36 @@ const defaultOptions: DecapCMSOptions = {
   oauthCallbackRoute: "/oauth/callback",
 };
 ```
+
+### Custom Config Path
+
+By default, the integration looks for the Decap CMS configuration at `public/admin/config.yml`. You can customize this path using the `configPath` option:
+
+```js
+decapCmsOauth({
+  configPath: ".decap.yml" // Path relative to project root
+})
+```
+
+#### Path Resolution Rules
+1. If `configPath` is provided, it resolves it relative to the project root.
+2. If the file doesn't exist at the specified path, it falls back to `public/admin/config.yml`.
+3. If still not found, it throws an error.
+
+#### Whitelist and Validation
+To ensure compatibility and security, only official Decap CMS fields are allowed in the configuration. These include: `backend`, `site_url`, `display_url`, `logo`, `logo_url`, `media_folder`, `public_folder`, `collections`, `publish_mode`, `show_preview_links`, `slug`, `local_backend`, `i18n`, `media_library`, `editor`, `search`, `locale`.
+
+The fields `backend` and `collections` are **required**. If they are missing or if the configuration file is invalid, the integration will throw an error to terminate the build process.
+
+#### Migration Example
+If you want to move your config from `public/admin/config.yml` to the root directory as `.decap.yml`:
+1. Move the file: `mv public/admin/config.yml .decap.yml`
+2. Update `astro.config.mjs`:
+   ```js
+   decapCmsOauth({
+     configPath: ".decap.yml"
+   })
+   ```
 
 To override default version of Decap CMS used, set `PUBLIC_DECAP_CMS_VERSION` env variable (takes precedence) or `decapCMSVersion` in `astro.config.mjs`.
 To disable injecting Decap CMS admin route, set `adminDisabled` to `true` in `astro.config.mjs`.
