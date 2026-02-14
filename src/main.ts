@@ -12,7 +12,7 @@ export interface DecapCMSOptions {
     decapCMSVersion?: string;
     adminDisabled?: boolean;
     adminRoute?: string;
-    oauthDisabled?: boolean;
+    enable?: boolean;
     oauthLoginRoute?: string;
     oauthCallbackRoute?: string;
 }
@@ -22,7 +22,7 @@ const defaultOptions: DecapCMSOptions = {
     decapCMSVersion: "3.3.3",
     adminDisabled: false,
     adminRoute: "/admin",
-    oauthDisabled: false,
+    enable: true,
     oauthLoginRoute: "/oauth",
     oauthCallbackRoute: "/oauth/callback",
 };
@@ -54,7 +54,7 @@ export default function decapCMS(options: DecapCMSOptions = {}): AstroIntegratio
         decapCMSVersion,
         adminDisabled,
         adminRoute,
-        oauthDisabled,
+        enable,
         oauthLoginRoute,
         oauthCallbackRoute,
     } = {
@@ -125,7 +125,7 @@ export default function decapCMS(options: DecapCMSOptions = {}): AstroIntegratio
                     });
                 }
 
-                if (!oauthDisabled) {
+                if (enable) {
                     env.schema!.OAUTH_GITHUB_CLIENT_ID = envField.string({
                         context: "server",
                         access: "secret",

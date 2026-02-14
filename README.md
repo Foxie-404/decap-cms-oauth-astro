@@ -97,7 +97,7 @@ export interface DecapCMSOptions {
   decapCMSVersion?: string;
   adminDisabled?: boolean;
   adminRoute?: string;
-  oauthDisabled?: boolean;
+  enable?: boolean;
   oauthLoginRoute?: string;
   oauthCallbackRoute?: string;
 }
@@ -108,7 +108,7 @@ const defaultOptions: DecapCMSOptions = {
   decapCMSVersion: "3.3.3",
   adminDisabled: false,
   adminRoute: "/admin",
-  oauthDisabled: false,
+  enable: true,
   oauthLoginRoute: "/oauth",
   oauthCallbackRoute: "/oauth/callback",
 };
@@ -146,7 +146,7 @@ If you want to move your config from `public/admin/config.yml` to the root direc
 
 To override default version of Decap CMS used, set `PUBLIC_DECAP_CMS_VERSION` env variable (takes precedence) or `decapCMSVersion` in `astro.config.mjs`.
 To disable injecting Decap CMS admin route, set `adminDisabled` to `true` in `astro.config.mjs`.
-To disable injecting OAuth routes, set `oauthDisabled` to `true` in `astro.config.mjs`.
+To enable injecting OAuth routes, set `enable` to `true` (default) in `astro.config.mjs`.
 
 ```js
 import { defineConfig } from "astro/config";
@@ -158,7 +158,7 @@ export default defineConfig({
       decapCmsOauth({
         decapCMSVersion: "3.3.3",
         adminDisabled: false,
-        oauthDisabled: true,
+        enable: true,
       }),
     ],
 });
