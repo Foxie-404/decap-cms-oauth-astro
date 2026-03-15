@@ -67,7 +67,7 @@ export default function decapCMS(options: DecapCMSOptions = {}): AstroIntegratio
     }
 
     return {
-        name: "astro-decap-cms-oauth",
+        name: "decap-cms-oauth-astro",
         hooks: {
             "astro:config:setup": async ({ injectRoute, updateConfig, config }) => {
                 const env: AstroConfig["env"] = { validateSecrets: true, schema: {} };
@@ -115,13 +115,13 @@ export default function decapCMS(options: DecapCMSOptions = {}): AstroIntegratio
                     // mount DecapCMS admin route
                     injectRoute({
                         pattern: adminRoute,
-                        entrypoint: "astro-decap-cms-oauth/src/admin.astro",
+                        entrypoint: "decap-cms-oauth-astro/src/admin.astro",
                     });
 
                     // mount DecapCMS config route
                     injectRoute({
                         pattern: `${adminRoute}/config.yml`,
-                        entrypoint: "astro-decap-cms-oauth/src/config.ts",
+                        entrypoint: "decap-cms-oauth-astro/src/config.ts",
                     });
                 }
 
@@ -144,13 +144,13 @@ export default function decapCMS(options: DecapCMSOptions = {}): AstroIntegratio
                     // mount OAuth backend - sign in route
                     injectRoute({
                         pattern: oauthLoginRoute,
-                        entrypoint: "astro-decap-cms-oauth/src/oauth/index.ts",
+                        entrypoint: "decap-cms-oauth-astro/src/oauth/index.ts",
                     });
 
                     // mount OAuth backend - callback route
                     injectRoute({
                         pattern: oauthCallbackRoute,
-                        entrypoint: "astro-decap-cms-oauth/src/oauth/callback.ts",
+                        entrypoint: "decap-cms-oauth-astro/src/oauth/callback.ts",
                     });
                 }
 
