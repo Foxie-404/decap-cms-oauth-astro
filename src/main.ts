@@ -1,6 +1,6 @@
 import type { AstroConfig, AstroIntegration } from "astro";
 import { envField } from "astro/config";
-import fs from "node:fs";
+import fsPromises from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
@@ -66,6 +66,11 @@ export default function decapCMS(options: DecapCMSOptions = {}): AstroIntegratio
         throw new Error('`adminRoute`, `oauthLoginRoute` and `oauthCallbackRoute` options must start with "/"');
     }
 
+    const normalizedAdminRoute =
+        adminRoute && adminRoute.endsWith("/")
+            ? adminRoute.replace(/\/+$/, "")
+            : adminRoute;
+
     return {
         name: "decap-cms-oauth-astro",
         hooks: {
@@ -73,56 +78,83 @@ export default function decapCMS(options: DecapCMSOptions = {}): AstroIntegratio
                 const env: AstroConfig["env"] = { validateSecrets: true, schema: {} };
 
                 let validatedConfigYaml = "";
+                let adminSetupFailed = false;
 
                 if (!adminDisabled) {
                     // Resolve config path
                     const rootDir = fileURLToPath(config.root);
-                    let absoluteConfigPath = path.resolve(rootDir, configPath!);
+                    const effectiveConfigPath = configPath ?? defaultOptions.configPath!;
+                    let absoluteConfigPath = path.resolve(rootDir, effectiveConfigPath);
 
-                    if (!fs.existsSync(absoluteConfigPath)) {
+                    if (!(await fsPromises.access(absoluteConfigPath).then(() => true).catch(() => false))) {
                         const fallbackPath = path.resolve(rootDir, "public/admin/config.yml");
-                        if (fs.existsSync(fallbackPath)) {
+                        if (await fsPromises.access(fallbackPath).then(() => true).catch(() => false)) {
                             absoluteConfigPath = fallbackPath;
                         } else {
-                            throw new Error(`Decap CMS config file not found at ${configPath} or ${fallbackPath}`);
+                            throw new Error(`Decap CMS config file not found at ${effectiveConfigPath} or ${fallbackPath}`);
                         }
                     }
 
                     // Read and validate config
                     try {
-                        const fileContent = fs.readFileSync(absoluteConfigPath, "utf8");
-                        const parsedConfig = yaml.load(fileContent) as Record<string, any>;
+                        const fileContent = await fsPromises.readFile(absoluteConfigPath, "utf8");
+                        const rawConfig = yaml.load(fileContent);
+                        if (
+                            typeof rawConfig !== "object" ||
+                            rawConfig === null ||
+                            Array.isArray(rawConfig)
+                        ) {
+                            console.error("Decap CMS configuration must be a YAML object.");
+                            adminSetupFailed = true;
+                        } else {
+                            const parsedConfig = rawConfig as Record<string, any>;
 
-                        if (!parsedConfig.backend || !parsedConfig.collections) {
-                            console.error("Decap CMS configuration is missing required fields: 'backend' or 'collections'. Admin dashboard will be disabled.");
-                            return;
-                        }
+                            if (!parsedConfig.backend || !parsedConfig.collections) {
+                                console.error("Decap CMS configuration is missing required fields: 'backend' or 'collections'. Admin dashboard will be disabled.");
+                                adminSetupFailed = true;
+                            } else {
+                                // Whitelist filtering
+                                const filteredConfig: Record<string, any> = {};
+                                for (const key of WHITELIST) {
+                                    if (key in parsedConfig) {
+                                        filteredConfig[key] = parsedConfig[key];
+                                    }
+                                }
 
-                        // Whitelist filtering
-                        const filteredConfig: Record<string, any> = {};
-                        for (const key of WHITELIST) {
-                            if (key in parsedConfig) {
-                                filteredConfig[key] = parsedConfig[key];
+                                validatedConfigYaml = yaml.dump(filteredConfig);
                             }
                         }
-
-                        validatedConfigYaml = yaml.dump(filteredConfig);
                     } catch (e) {
                         console.error(`Failed to parse Decap CMS config: ${e}`);
-                        return;
+                        adminSetupFailed = true;
                     }
 
-                    // mount DecapCMS admin route
-                    injectRoute({
-                        pattern: adminRoute,
-                        entrypoint: "decap-cms-oauth-astro/src/admin.astro",
-                    });
+                    if (!adminSetupFailed) {
+                        env.schema!.PUBLIC_DECAP_CMS_SRC_URL = envField.string({
+                            context: "client",
+                            access: "public",
+                            optional: true,
+                            default: decapCMSSrcUrl,
+                        });
+                        env.schema!.PUBLIC_DECAP_CMS_VERSION = envField.string({
+                            context: "client",
+                            access: "public",
+                            optional: true,
+                            default: decapCMSVersion,
+                        });
 
-                    // mount DecapCMS config route
-                    injectRoute({
-                        pattern: `${adminRoute}/config.yml`,
-                        entrypoint: "decap-cms-oauth-astro/src/config.ts",
-                    });
+                        // mount DecapCMS admin route
+                        injectRoute({
+                            pattern: normalizedAdminRoute,
+                            entrypoint: "decap-cms-oauth-astro/src/admin.astro",
+                        });
+
+                        // mount DecapCMS config route
+                        injectRoute({
+                            pattern: `${normalizedAdminRoute}/config.yml`,
+                            entrypoint: "decap-cms-oauth-astro/src/config.ts",
+                        });
+                    }
                 }
 
                 if (enable) {

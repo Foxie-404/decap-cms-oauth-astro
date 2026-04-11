@@ -1,5 +1,4 @@
 import type { APIRoute } from "astro";
-// @ts-ignore
 import { configYaml } from "virtual:decap-cms-config";
 
 

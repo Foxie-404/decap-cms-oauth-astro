@@ -1,8 +1,17 @@
 <div align="center">
     <h1 align="center">decap-cms-oauth-astro</h1>
-    <p align="center">Astro integration for <a href="https://decapcms.org" target="_blank">Decap</a>/<a href="https://github.com/sveltia/sveltia-cms" target="_blank">Sveltia</a> CMS with custom OAuth backend</p>
+    <p align="center">Astro integration for <a href="https://decapcms.org" target="_blank">Decap</a> CMS with custom OAuth backend</p>
     <br/>
 </div>
+
+<p align="center">
+    <a href="https://npmjs.com/package/astro-decap-cms-oauth">
+        <img src="https://img.shields.io/npm/v/decap-cms-oauth-astro" alt="astro-decap-cms-oauth" />
+    </a>
+    <a href="https://npmjs.com/package/astro-decap-cms-oauth">
+        <img src="https://img.shields.io/npm/dt/decap-cms-oauth-astro" alt="npm download count">
+    </a>
+</p>
 
 A integration plugin that mounts the Decap CMS (or any compatible CMS like Sveltia) admin dashboard and custom OAuth authentication backend routes to `/oauth`&`/oauth/callback` using GitHub as the provider.
 
@@ -16,7 +25,14 @@ npx astro add decap-cms-oauth-astro
 
 ## Usage
 
-1. Put your `config.yml` file in `public/admin/config.yml` (see [Decap CMS Docs](https://decapcms.org/docs/add-to-your-site/#configuration) for more info)
+0. By default, the integration looks for the Decap CMS configuration at `public/admin/config.yml`. You can customize this path using the `configPath` option inside `astro.config.mjs`
+    ```js
+    decapCmsOauth({
+        configPath: "./.decap.yml" // Path relative to project root
+    })
+    ```
+
+1. Configurate your .yml file (see [Decap CMS Docs](https://decapcms.org/docs/add-to-your-site/#configuration) for more info)
     ```yml
     backend:
         name: github
@@ -40,7 +56,7 @@ npx astro add decap-cms-oauth-astro
 
     You can then use this ID for the `OAUTH_GITHUB_REPO_ID` environment variable.
 
-4. Set env variables
+3. Set env variables
     ```bash
     # GitHub OAuth App & GitHub App
     OAUTH_GITHUB_CLIENT_ID=
@@ -48,16 +64,6 @@ npx astro add decap-cms-oauth-astro
     # GitHub App only
     OAUTH_GITHUB_REPO_ID=
     ```
-
-
-## Custom Config Path
-
-By default, the integration looks for the Decap CMS configuration at `public/admin/config.yml`. You can customize this path using the `configPath` option:
-```js
-decapCmsOauth({
-    configPath: ".decap.yml" // Path relative to project root
-})
-```
 
 
 ## Whitelist and Validation
