@@ -5,10 +5,10 @@
 </div>
 
 <p align="center">
-    <a href="https://npmjs.com/package/astro-decap-cms-oauth">
-        <img src="https://img.shields.io/npm/v/decap-cms-oauth-astro" alt="astro-decap-cms-oauth" />
+    <a href="https://npmjs.com/package/decap-cms-oauth-astro">
+        <img src="https://img.shields.io/npm/v/decap-cms-oauth-astro" alt="decap-cms-oauth-astro" />
     </a>
-    <a href="https://npmjs.com/package/astro-decap-cms-oauth">
+    <a href="https://npmjs.com/package/decap-cms-oauth-astro">
         <img src="https://img.shields.io/npm/dt/decap-cms-oauth-astro" alt="npm download count">
     </a>
 </p>
